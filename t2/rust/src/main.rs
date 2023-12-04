@@ -1,4 +1,5 @@
 use std::io::{self};
+use std::cmp;
 
 struct Game {
     red: u32,
@@ -91,9 +92,20 @@ fn check_games(games: &[Game], ref_game: &Game) -> bool {
     return true;
 }
 
+fn get_min_game(games: &[Game]) -> Game {
+    let mut min_game = Game {red: 0, blue: 0, green: 0};
+    for game in games.iter() {
+        min_game.red = cmp::max(min_game.red, game.red);
+        min_game.blue = cmp::max(min_game.blue, game.blue);
+        min_game.green = cmp::max(min_game.green, game.green);
+    }
+    return min_game;
+}
+
 
 fn main() {
     let mut id_sum = 0;
+    let mut power_sums: u32 = 0;
     let ref_game = Game {red: 12, blue: 14, green: 13};
 
     for line in io::stdin().lines() {
@@ -102,9 +114,12 @@ fn main() {
             if check_games(&res.1, &ref_game) {
                 id_sum += res.0;
             }
+            let min_game = get_min_game(&res.1);
+            power_sums += min_game.red * min_game.blue * min_game.green;
         }
     }
-    println!("{}", id_sum);
+    println!("part 1: {}", id_sum);
+    println!("part 2: {}", power_sums);
 }
 
 #[test]
@@ -147,4 +162,13 @@ fn test_check_games() {
 
     assert_eq!(check_games(&good_games, &ref_game), true);
     assert_eq!(check_games(&bad_games, &ref_game), false);
+}
+
+#[test]
+fn test_min_game() {
+    let games: Vec<Game> = vec![Game{red: 2, blue: 1, green: 1}, Game{red: 1, blue: 3, green: 1}];
+    let min_game: Game = get_min_game(&games);
+    assert_eq!(min_game.red, 2);
+    assert_eq!(min_game.blue, 3);
+    assert_eq!(min_game.green, 1);
 }
