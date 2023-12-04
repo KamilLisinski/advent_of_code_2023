@@ -1,0 +1,5 @@
+**/target
+*.out
+input.txt
+test_input.txt
+Cargo.lock
