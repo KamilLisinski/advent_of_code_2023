@@ -1,4 +1,4 @@
-use std::{io, u32, cmp};
+use std::{io, u32, cmp, collections::HashMap};
 
 struct PartNumber {
     value: u32,
@@ -41,17 +41,19 @@ fn get_all_numbers(line: &str) -> Vec<PartNumber> {
 }
 
 impl PartNumber {
-    fn check_if_part<T: AsRef<str>>(&self, lines: &[T]) -> bool {
-        for line in lines {
-            if let Some(s) = line.as_ref().get((self.start_index.checked_sub(1).unwrap_or(0))..cmp::min(self.start_index + self.length + 1, line.as_ref().len())) {
-                for c in s.chars() {
+    fn check_if_part<T: AsRef<str>>(&self, lines: &[T]) -> Option<(char, usize, usize)> {
+        for (j, line) in lines.iter().enumerate() {
+            let string_start = self.start_index.checked_sub(1).unwrap_or(0);
+            let string_end = cmp::min(self.start_index + self.length + 1, line.as_ref().len());
+            if let Some(s) = line.as_ref().get(string_start..string_end) {
+                for (i, c) in s.chars().enumerate() {
                     if !c.is_ascii_digit() && c != '.' {
-                        return true;
+                        return Some((c, i + string_start, j));
                     }
                 }
             }
         }
-        return false;
+        return None;
     }
 }
 
@@ -60,20 +62,31 @@ fn main() {
 
     let lines: Vec<String> = io::stdin().lines().map(|l| l.unwrap()).collect();
 
+    let mut gears: HashMap<(usize, usize), (u32, usize)> = HashMap::new();
+
     for (i, line) in lines.iter().enumerate() {
         let parts: Vec<PartNumber> = get_all_numbers(&line);
-        let context_lines = lines.get(i.checked_sub(1).unwrap_or(0)..(cmp::min(lines.len(), i+2)));
+        let reference_index = i.checked_sub(1).unwrap_or(0);
+        let context_lines = lines.get(reference_index..(cmp::min(lines.len(), i+2)));
 
         if let Some(cl) = context_lines {
             for part in parts.iter() {
-                if part.check_if_part(cl) {
+                if let Some(part_results) = part.check_if_part(cl) {
                     sum_of_parts += part.value;
+                    if part_results.0 == '*' {
+                        let gear = gears.entry((reference_index + part_results.2, part_results.1)).or_insert((1, 0));
+                        gear.0 *= part.value;
+                        gear.1 += 1;
+                    }
                 }
             }
         }
     }
 
     println!("part 1: {}", sum_of_parts);
+
+    let gear_sum = gears.values().filter(|x| x.1 > 1).map(|x| x.0).sum::<u32>();
+    println!("part 2: {}", gear_sum);
 }
 
 #[test]
@@ -94,14 +107,19 @@ fn test_get_all_numbers() {
 fn test_check_if_part() {
     let part: PartNumber = PartNumber { value: 1, start_index: 0, length: 1 };
     let bad_lines: Vec<&str> = vec!["...", "1..", "..."];
-    assert_eq!(part.check_if_part(&bad_lines), false);
+    assert_eq!(part.check_if_part(&bad_lines).is_some(), false);
     let good_lines: Vec<&str> = vec![".@.", "1..", "..."];
-    assert_eq!(part.check_if_part(&good_lines), true);
+    assert_eq!(part.check_if_part(&good_lines).is_some(), true);
 }
 
 #[test]
 fn test_check_if_part_2() {
     let part: PartNumber = PartNumber { value: 467, start_index: 0, length: 3 };
     let good_lines: Vec<&str> = vec!["467..114..", "...*......"];
-    assert_eq!(part.check_if_part(&good_lines), true);
+    assert_eq!(part.check_if_part(&good_lines).is_some(), true);
+    if let Some(res) = part.check_if_part(&good_lines) {
+        assert_eq!(res.0, '*');
+        assert_eq!(res.1, 3);
+        assert_eq!(res.2, 1);
+    }
 }
